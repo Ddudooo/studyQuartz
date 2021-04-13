@@ -1,0 +1,22 @@
+spring:
+  batch:
+    job:
+      enabled: false
+  quartz:
+    jdbc:
+      initialize-schema: always
+    job-store-type: jdbc
+    scheduler-name: study-Quartz
+    properties:
+      org.quartz.threadPool.threadCount: 5
+  datasource:
+    url: jdbc:h2:tcp://localhost/~/studyQuartz
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+logging:
+  level:
+    org:
+      quartz: debug
+    study: trace
