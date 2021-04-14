@@ -17,6 +17,7 @@ import org.quartz.TriggerBuilder;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import study.studyquartz.batch.QuartzJob;
 import study.studyquartz.dto.JobRequest;
 import study.studyquartz.dto.JobResponse;
@@ -120,6 +121,16 @@ public class ScheduleService {
         scheduler.getListenerManager().addJobListener(jobListener);
     }
 
+    public void deleteJob(JobRequest jobRequest) throws SchedulerException {
+        JobKey jobKey = JobKey.jobKey(jobRequest.getJobName(), jobRequest.getJobGroup());
+        try {
+            boolean isDeleted = scheduler.deleteJob(jobKey);
+        } catch (SchedulerException e) {
+            log.error(e.getMessage(), e);
+            throw e;
+        }
+    }
+
     public JobStatusResponse getJobList() throws SchedulerException {
         try {
             List<JobResponse> jobs = new ArrayList<>();
@@ -127,24 +138,37 @@ public class ScheduleService {
             int numOfGroups = 0;
             int numOfAllJobs = 0;
             for (String groupName : scheduler.getJobGroupNames()) {
+                log.info("groupName {}", groupName);
+                numOfGroups++;
                 for (JobKey jobKey : scheduler.getJobKeys(GroupMatcher.jobGroupEquals(groupName))) {
-                    List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobKey);
-                    JobResponse jobResponse = JobResponse.builder()
-                        .jobName(jobKey.getName())
-                        .groupName(jobKey.getGroup())
-                        .scheduleTime(triggers.get(0).getStartTime().toString())
-                        .lastFiredTime(triggers.get(0).getPreviousFireTime().toString())
-                        .nextFireTime(triggers.get(0).getNextFireTime().toString())
-                        .build();
-                    if (isJobRunning(jobKey)) {
-                        jobResponse.setJobStatus("RUNNING");
-                        numOfRunningJobs++;
+                    log.info("jobKey - {}", jobKey.toString());
+                    List<? extends Trigger> triggers = getTriggersOfJob(jobKey);
+                    if (CollectionUtils.isEmpty(triggers)) {
+                        JobDetail jobDetail = scheduler.getJobDetail(jobKey);
+                        JobResponse jobResponse = JobResponse.builder()
+                            .jobName(jobKey.getName())
+                            .groupName(jobKey.getGroup())
+                            .build();
+                        jobResponse.setJobStatus("NONE TRIGGER.");
+                        jobs.add(jobResponse);
                     } else {
-                        String jobState = getJobState(jobKey);
-                        jobResponse.setJobStatus(jobState);
+                        JobResponse jobResponse = JobResponse.builder()
+                            .jobName(jobKey.getName())
+                            .groupName(jobKey.getGroup())
+                            .scheduleTime(getScheduleTime(triggers))
+                            .lastFiredTime(getLastFiredTime(triggers))
+                            .nextFireTime(getNextFireTime(triggers))
+                            .build();
+                        if (isJobRunning(jobKey)) {
+                            jobResponse.setJobStatus("RUNNING");
+                            numOfRunningJobs++;
+                        } else {
+                            String jobState = getJobState(jobKey);
+                            jobResponse.setJobStatus(jobState);
+                        }
+                        jobs.add(jobResponse);
                     }
                     numOfAllJobs++;
-                    jobs.add(jobResponse);
                 }
 
             }
@@ -157,6 +181,42 @@ public class ScheduleService {
         } catch (SchedulerException e) {
             log.error(e.getMessage(), e);
             throw e;
+        }
+    }
+
+    private String getNextFireTime(List<? extends Trigger> triggers) {
+        try {
+            return triggers.get(0).getNextFireTime().toString();
+        } catch (Exception e) {
+            //데이터 없을 경우
+            return "";
+        }
+    }
+
+    private String getLastFiredTime(List<? extends Trigger> triggers) {
+        try {
+            return triggers.get(0).getPreviousFireTime().toString();
+        } catch (Exception e) {
+            //데이터 없을 경우
+            return "";
+        }
+    }
+
+    private String getScheduleTime(List<? extends Trigger> triggers) {
+        try {
+            return triggers.get(0).getStartTime().toString();
+        } catch (Exception e) {
+            //데이터 없을 경우
+            return "";
+        }
+    }
+
+    private List<? extends Trigger> getTriggersOfJob(JobKey jobKey) {
+        try {
+            return scheduler.getTriggersOfJob(jobKey);
+        } catch (SchedulerException e) {
+            log.error(e.getMessage(), e);
+            return new ArrayList<>();
         }
     }
 

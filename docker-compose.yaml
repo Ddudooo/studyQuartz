@@ -1,0 +1,21 @@
+version: '3.9'
+services:
+  mysql:
+    image: mysql:5.7
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=batch
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=1234
+    command:
+      - --character-set-server=utf8
+      - --collation-server=utf8_unicode_ci
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=user
+      - MONGO_INITDB_ROOT_PASSWORD=1234

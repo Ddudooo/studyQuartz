@@ -28,6 +28,8 @@ public class SampleJob {
             .get("SAMPLE STEP")
             .tasklet((contribution, chunkContext) -> {
                 log.info("SAMPLE STEP - TASKLET");
+                Thread.sleep(5000L);
+                log.info("SAMPLE STEP - DONE!");
                 return RepeatStatus.FINISHED;
             })
             .build();
